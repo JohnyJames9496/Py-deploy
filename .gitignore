@@ -7,3 +7,7 @@ __pycache__/
 crash.log
 *.tfvars
 .terraform/
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
