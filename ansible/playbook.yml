@@ -1,0 +1,98 @@
+---
+- name: Setup server
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+        state: present
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Copy docker-compose.yml to server
+      copy:
+        src: ../docker-compose.yml
+        dest: /home/ubuntu/docker-compose.yml
+
+    - name: Tear down existing containers
+      command: docker-compose down
+      args:
+        chdir: /home/ubuntu
+      ignore_errors: yes
+
+    - name: Start app and database
+      command: docker-compose up -d
+      args:
+        chdir: /home/ubuntu
+
+    - name: Wait for database to initialise
+      wait_for:
+        timeout: 20
+
+    - name: Create database tables
+      command: docker-compose exec -T app sh -c "cd src && python -c 'from app import app, db; app.app_context().push(); db.create_all()'"
+      args:
+        chdir: /home/ubuntu
+      register: db_setup
+      retries: 3
+      delay: 10
+      until: db_setup.rc == 0
+
+    - name: Copy prometheus config to server
+      copy:
+        src: prometheus.yml
+        dest: /home/ubuntu/prometheus.yml
+
+    - name: Create Grafana datasource config
+      copy:
+        dest: /home/ubuntu/datasource.yml
+        content: |
+          apiVersion: 1
+          datasources:
+            - name: Prometheus
+              type: prometheus
+              access: proxy
+              url: http://prometheus:9090
+              isDefault: true
+
+    - name: Create monitoring network
+      community.docker.docker_network:
+        name: monitoring_network
+
+    - name: Run Prometheus container
+      community.docker.docker_container:
+        name: prometheus
+        image: prom/prometheus
+        state: started
+        restart_policy: always
+        ports:
+          - "9090:9090"
+        volumes:
+          - /home/ubuntu/prometheus.yml:/etc/prometheus/prometheus.yml
+        networks:
+          - name: monitoring_network
+
+    - name: Run Grafana container
+      community.docker.docker_container:
+        name: grafana
+        image: grafana/grafana:latest
+        state: started
+        restart_policy: always
+        ports:
+          - "3000:3000"
+        networks:
+          - name: monitoring_network
+        volumes:
+          - /home/ubuntu/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
