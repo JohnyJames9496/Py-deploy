@@ -1,16 +1,8 @@
-# Python cache
-__pycache__/
-*.pyc
-
-# Virtual environment
 venv/
-.env/
-
-# Environment variables
-.env
-
-# IDE files
-.vscode/
-
-# Logs
-*.log
+__pycache__/
+*.pem
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
