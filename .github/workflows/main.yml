@@ -93,5 +93,10 @@ jobs:
       - name: Wait for SSH
         run: until ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP 'echo ready'; do sleep 10; done
 
+      - name: Create .env file on server
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP \
+            "echo 'DB_URL=${{ secrets.DB_URL }}' > /home/ubuntu/.env"
+
       - name: Run Ansible playbook
         run: ansible-playbook -i ansible/inventory ansible/playbook.yml
