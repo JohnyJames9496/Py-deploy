@@ -12,7 +12,7 @@
       apt:
         name:
           - docker.io
-          - docker-compose
+          - docker-compose-plugin    # CHANGED: was docker-compose
         state: present
 
     - name: Add ubuntu user to docker group
@@ -26,14 +26,17 @@
         src: ../docker-compose.yml
         dest: /home/ubuntu/docker-compose.yml
 
+    - name: Remove unused Docker images    # NEW: cleans up before deployment
+      command: docker image prune -af
+
     - name: Tear down existing containers
-      command: docker-compose down
+      command: docker compose down         # CHANGED: was docker-compose
       args:
         chdir: /home/ubuntu
       ignore_errors: yes
 
     - name: Start app and database
-      command: docker-compose up -d
+      command: docker compose up -d        # CHANGED: was docker-compose
       args:
         chdir: /home/ubuntu
 
@@ -42,7 +45,7 @@
         timeout: 20
 
     - name: Create database tables
-      command: docker-compose exec -T app sh -c "cd src && python -c 'from app import app, db; app.app_context().push(); db.create_all()'"
+      command: docker compose exec -T app sh -c "cd src && python -c 'from app import app, db; app.app_context().push(); db.create_all()'"  # CHANGED: was docker-compose
       args:
         chdir: /home/ubuntu
       register: db_setup
