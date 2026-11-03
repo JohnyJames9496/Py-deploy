@@ -44,7 +44,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/my-devops-app:latest
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/my-devops-app:latest
+            ${{ secrets.DOCKER_USERNAME }}/my-devops-app:${{ github.sha }}
 
   deploy:
     needs: build-and-push
