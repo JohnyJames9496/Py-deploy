@@ -35,14 +35,14 @@
         chdir: /home/ubuntu
       ignore_errors: yes
 
-    - name: Start app and database
+    - name: Start app
       command: docker-compose up -d
       args:
         chdir: /home/ubuntu
 
-    - name: Wait for database to initialise
+    - name: Wait for app to initialise
       wait_for:
-        timeout: 20
+        timeout: 15
 
     - name: Create database tables
       command: docker-compose exec -T app sh -c "cd src && python -c 'from app import app, db; app.app_context().push(); db.create_all()'"
