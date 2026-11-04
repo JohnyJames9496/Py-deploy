@@ -6,13 +6,10 @@ from prometheus_flask_exporter import PrometheusMetrics
 app = Flask(__name__)
 metrics = PrometheusMetrics(app)
 
-db_url = os.environ.get("DB_URL", "sqlite:///local.db")
+db_url = os.environ.get("DB_URL")
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-
-with app.app_context():
-    db.create_all()
 
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -20,6 +17,13 @@ class Todo(db.Model):
 
     def __repr__(self):
         return f'<Todo {self.id}: {self.text}>'
+
+with app.app_context():
+    try:
+        db.create_all()
+        print("Database tables created or already exist")
+    except Exception as e:
+        print(f"Warning: Could not create tables on startup: {e}")
 
 @app.route('/')
 def index():
