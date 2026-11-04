@@ -14,10 +14,11 @@ receivers:
       - api_url: '{{ slack_webhook_url }}'
         channel: '#devops-alerts'
         send_resolved: true
-        title: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'
-        text: >-
+        title: {% raw %}'[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'{% endraw %}
+
+        text: {% raw %}>-
           {{ range .Alerts }}
             *Alert:* {{ .Annotations.summary }}
             *Description:* {{ .Annotations.description }}
             *Severity:* {{ .Labels.severity }}
-          {{ end }}
+          {{ end }}{% endraw %}
