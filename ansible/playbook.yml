@@ -40,19 +40,6 @@
       args:
         chdir: /home/ubuntu
 
-    - name: Wait for app to initialise
-      wait_for:
-        timeout: 15
-
-    - name: Create database tables
-      command: docker-compose exec -T app sh -c "cd src && python -c 'from app import app, db; app.app_context().push(); db.create_all()'"
-      args:
-        chdir: /home/ubuntu
-      register: db_setup
-      retries: 3
-      delay: 10
-      until: db_setup.rc == 0
-
     - name: Copy prometheus config to server
       copy:
         src: prometheus.yml
