@@ -8,26 +8,17 @@
       apt:
         update_cache: yes
 
-    - name: Install Docker
+    - name: Install system tools
       apt:
         name:
           - docker.io
           - docker-compose
         state: present
 
-    - name: Add ubuntu user to docker group
-      user:
-        name: ubuntu
-        groups: docker
-        append: yes
-
     - name: Copy docker-compose.yml to server
       copy:
         src: ../docker-compose.yml
         dest: /home/ubuntu/docker-compose.yml
-
-    - name: Remove unused Docker images
-      command: docker image prune -af
 
     - name: Tear down existing containers
       command: docker-compose down
@@ -35,17 +26,68 @@
         chdir: /home/ubuntu
       ignore_errors: yes
 
-    - name: Start app
+    - name: Docker image cleanup
+      command: docker image prune -af
+      ignore_errors: yes
+
+    - name: Create a network
+      community.docker.docker_network:
+        name: app_network
+
+    - name: Start App and DB
       command: docker-compose up -d
       args:
         chdir: /home/ubuntu
 
-    - name: Copy prometheus config to server
+    - name: Wait for database to initialise
+      wait_for:
+        timeout: 20
+
+    - name: Copy prometheus configuration
       copy:
         src: prometheus.yml
         dest: /home/ubuntu/prometheus.yml
 
-    - name: Create Grafana datasource config
+    - name: Copy alert rules
+      copy:
+        src: alert_rules.yml
+        dest: /home/ubuntu/alert_rules.yml
+
+    - name: Copy alertmanager configuration
+      template:
+        src: alertmanager.yml
+        dest: /home/ubuntu/alertmanager.yml
+      vars:
+        slack_webhook_url: "{{ lookup('env', 'SLACK_WEBHOOK_URL') }}"
+
+    - name: Run Alertmanager container
+      community.docker.docker_container:
+        name: alertmanager
+        image: prom/alertmanager
+        state: started
+        restart_policy: always
+        ports:
+          - "9093:9093"
+        volumes:
+          - /home/ubuntu/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+        networks:
+          - name: app_network
+
+    - name: Run Prometheus Container
+      community.docker.docker_container:
+        name: prometheus
+        image: prom/prometheus
+        state: started
+        restart_policy: always
+        ports:
+          - "9090:9090"
+        volumes:
+          - /home/ubuntu/prometheus.yml:/etc/prometheus/prometheus.yml
+          - /home/ubuntu/alert_rules.yml:/etc/prometheus/alert_rules.yml
+        networks:
+          - name: app_network
+
+    - name: Create Grafana Datasource Config
       copy:
         dest: /home/ubuntu/datasource.yml
         content: |
@@ -57,24 +99,7 @@
               url: http://prometheus:9090
               isDefault: true
 
-    - name: Create monitoring network
-      community.docker.docker_network:
-        name: monitoring_network
-
-    - name: Run Prometheus container
-      community.docker.docker_container:
-        name: prometheus
-        image: prom/prometheus
-        state: started
-        restart_policy: always
-        ports:
-          - "9090:9090"
-        volumes:
-          - /home/ubuntu/prometheus.yml:/etc/prometheus/prometheus.yml
-        networks:
-          - name: monitoring_network
-
-    - name: Run Grafana container
+    - name: Run Grafana Container
       community.docker.docker_container:
         name: grafana
         image: grafana/grafana:latest
@@ -83,6 +108,6 @@
         ports:
           - "3000:3000"
         networks:
-          - name: monitoring_network
+          - name: app_network
         volumes:
           - /home/ubuntu/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml

@@ -1,0 +1,20 @@
+groups:
+  - name: app_alerts
+    rules:
+      - alert: AppDown
+        expr: up{job="py-deploy-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Application is down"
+          description: "The py-deploy app has been unreachable for more than 1 minute."
+
+      - alert: HighResponseTime
+        expr: http_request_duration_seconds_sum / http_request_duration_seconds_count > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time detected"
+          description: "Average response time has exceeded 1 second for 2 minutes."
