@@ -11,9 +11,15 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+with app.app_context():
+    db.create_all()
+
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.String(200), nullable=False)
+
+    def __repr__(self):
+        return f'<Todo {self.id}: {self.text}>'
 
 @app.route('/')
 def index():
@@ -28,8 +34,3 @@ def add_task():
         db.session.add(new_task)
         db.session.commit()
     return redirect(url_for('index'))
-
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    app.run(host='0.0.0.0', port=5000)
